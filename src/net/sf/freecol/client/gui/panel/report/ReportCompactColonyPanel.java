@@ -296,7 +296,9 @@ public final class ReportCompactColonyPanel extends ReportPanel {
             ProductionStatus status;
             AbstractGoods deficit;
             int extra = 0;
-            if (p < 0) {
+            if (goodsType.isLibertyType()) {
+                status =ProductionStatus.GOOD;
+            } else if (p < 0) {
                 status = (amount < low) ? ProductionStatus.FAIL
                     : ProductionStatus.BAD;
                 extra = -amount / p + 1;
