@@ -129,6 +129,9 @@ public final class GoodsType extends FreeColSpecObjectType {
      */
     private float zeroProductionFactor = DEFAULT_ZERO_PRODUCTION_FACTOR;
 
+    private Set<GoodsType> equivalentTypes = transform(getSpecification().getGoodsTypeList(),
+            gt -> gt == this || gt.getStoredAs() == this,
+            Function.identity(), Collectors.toSet());
 
     /**
      * Create a new goods type.
@@ -468,11 +471,9 @@ public final class GoodsType extends FreeColSpecObjectType {
      *     must include this one.
      */
     public Set<GoodsType> getEquivalentTypes() {
-        return transform(getSpecification().getGoodsTypeList(),
-                         gt -> gt == this || gt.getStoredAs() == this,
-                         Function.<GoodsType>identity(), Collectors.toSet());
+        return equivalentTypes;
     }
-        
+
     /**
      * Set the derived fields for the goods types in a specification.
      *
@@ -481,7 +482,7 @@ public final class GoodsType extends FreeColSpecObjectType {
      *   a BuildableType requiredGoods list
      * - makes depends on whether a GoodsType madeFrom field refers
      *   to another
-     *   
+     *
      * This is called from Specification.clean() when the
      * specification is fully read.  We must wait until then as the
      * made-from field can change in extended specifications and mods.
