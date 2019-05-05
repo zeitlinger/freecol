@@ -301,8 +301,7 @@ public final class ReportCompactColonyPanel extends ReportPanel {
                     : ProductionStatus.BAD;
                 extra = -amount / p + 1;
             } else if (p == 0 && !colony.isProducing(goodsType)) {
-                status = (colony.isConsuming(goodsType)) ? ProductionStatus.FAIL
-                    : ProductionStatus.NONE;
+                status = colony.isConsuming(goodsType) && !goodsType.isFoodType() ? ProductionStatus.FAIL : ProductionStatus.NONE;
             } else if (p == 0) {
                 status = ProductionStatus.ZERO;
                 extra = 0;
