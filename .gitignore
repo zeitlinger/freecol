@@ -197,3 +197,5 @@ idxmake.log
 www.freecol.org/.jekyll-cache
 www.freecol.org/.jekyll-metadata
 www.freecol.org/_site
+
+.gradle/
