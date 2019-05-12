@@ -1592,13 +1592,11 @@ public final class MapViewer extends FreeColClientHolder {
                     backgroundColor);
                 if (player.owns(settlement)) {
                     int bonusProduction = colony.getProductionBonus();
-                    if (bonusProduction != 0) {
                         String bonus = (bonusProduction > 0)
                             ? "+" + bonusProduction
-                            : Integer.toString(bonusProduction);
-                        rightImage = createLabel(g2d, bonus, this.fontNormal,
-                                                 backgroundColor);
-                    }
+                            :  Integer.toString(bonusProduction);
+                    rightImage = createLabel(g2d, bonus + "/" + colony.getUnitsToAdd(), this.fontNormal,
+                        backgroundColor);
                 }
             } else if (settlement instanceof IndianSettlement) {
                 IndianSettlement is = (IndianSettlement) settlement;
