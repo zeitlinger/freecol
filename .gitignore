@@ -48,6 +48,9 @@ hs_err_pid*
 *.iws
 *.iml
 
+## Gradle
+.gradle
+
 ## Plugin-specific files:
 
 # IntelliJ
