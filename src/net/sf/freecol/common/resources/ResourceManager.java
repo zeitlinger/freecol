@@ -25,21 +25,16 @@ import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.AbstractQueue;
-import java.util.ArrayList;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
-    
+
 import net.sf.freecol.FreeCol;
-import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.common.io.sza.SimpleZippedAnimation;
 import static net.sf.freecol.common.util.CollectionUtils.*;
 import static net.sf.freecol.common.util.StringUtils.*;
 import net.sf.freecol.common.util.Utils;
-
 
 /**
  * Class for getting resources (images, audio etc).
@@ -85,7 +80,7 @@ public class ResourceManager {
      * mergedContainer is written.
      */
     private static synchronized void startPreloading() {
-        if (FreeCol.getHeadless()) return; // Do not preload in headless mode
+//        if (FreeCol.getHeadless()) return; // Do not preload in headless mode
         if (preloadThread != null) return;
 
         preloadDone = false;
