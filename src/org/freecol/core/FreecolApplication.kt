@@ -60,10 +60,7 @@ class FreecolApplication : ApplicationAdapter() {
         val fixedImageLibrary = ImageLibrary(1f, imageCache)
 
         server.game.map.tileList.forEach { tile ->
-            val tileType = tile.type
-            tiledMap.addCell(ImageLibrary.getTerrainImageKey(tileType, tile.x, tile.y), "base", tile.x, tile.y)
-
-            tiledMap.displayTileWithBeachAndBorder(tile)
+            tiledMap.display(tile)
         }
 
         tiledMapRenderer = OrthogonalTiledMapRenderer(tiledMap.tiledMap)

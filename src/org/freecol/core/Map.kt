@@ -14,10 +14,14 @@ import net.sf.freecol.common.resources.ResourceManager
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.toPath
 
-const val beachEdge = "image.tile.model.tile.beach.edge"
-const val beachCorner = "image.tile.model.tile.beach.corner"
+data class LayerId(val key: String)
+
+
+val beachEdge = LayerId("image.tile.model.tile.beach.edge")
+val beachCorner = LayerId("image.tile.model.tile.beach.corner")
 const val border = "border"
-const val riverLayer = "river"
+val base = LayerId("base")
+const val unknown = "unknown"
 
 
 @ExperimentalPathApi
@@ -27,47 +31,73 @@ class Map(val tiledMap: TiledMap, private val maxY: Int) {
         val w = Gdx.graphics.width.toFloat()
         val h = Gdx.graphics.height.toFloat()
 
-        addLayer(w, h, "base")
+        addLayer(w, h, base)
         addLayer(w, h, beachEdge)
         addLayer(w, h, beachCorner)
-        addLayer(w, h, riverLayer)
         for (i in 0 until Direction.values().size * 2) {
-            addLayer(w, h, border + i)
+            addLayer(w, h, LayerId(border + i))
+        }
+        for (i in Direction.values().indices) {
+            addLayer(w, h, LayerId(unknown + i))
         }
     }
 
-    fun displayTileWithBeachAndBorder(tile: Tile) {
-        val x = tile.x;
-        val y = tile.y;
+    fun display(tile: Tile) {
+        val tileType = tile.type
+        addCell(ImageLibrary.getTerrainImageKey(tileType, tile.x, tile.y), base, tile.x, tile.y)
 
-        if (!tile.isExplored) return;
+        displayTileWithBeachAndBorder(tile)
+        displayUnknownTileBorder(tile)
+    }
+
+    private fun displayTileWithBeachAndBorder(tile: Tile) {
+        val x = tile.x
+        val y = tile.y
+
+        if (!tile.isExplored) {
+            return
+        }
         val style = tile.style
         if (!tile.isLand && style > 0) {
             val edgeStyle = style shr 4
             if (edgeStyle > 0) {
-                addCell(ImageLibrary.getEvenImageKey(edgeStyle, x, y, beachEdge), beachEdge, x, y)
+                addCell(ImageLibrary.getEvenImageKey(edgeStyle, x, y, beachEdge.key), beachEdge, x, y)
             }
-            val cornerStyle = style and 15;
+            val cornerStyle = style and 15
             if (cornerStyle > 0) {
-                addCell(ImageLibrary.getEvenImageKey(cornerStyle, x, y, beachCorner), beachCorner, x, y)
+                addCell(ImageLibrary.getEvenImageKey(cornerStyle, x, y, beachCorner.key), beachCorner, x, y)
             }
         }
 
         val imageBorders = Direction.values().flatMap { imageBorders(tile, it) }
         imageBorders.sortedByDescending { it.first }.forEachIndexed { index, b ->
-            addCell(b.second, border + index, x, y)
+            addCell(b.second, LayerId(border + index), x, y)
         }
     }
 
-    @ExperimentalPathApi
-    fun addCell(
+    private fun displayUnknownTileBorder(tile: Tile) {
+        if (!tile.isExplored) return
+        for (direction in Direction.values()) {
+            val borderingTile = tile.getNeighbourOrNull(direction)
+            if (borderingTile != null && !borderingTile.isExplored) {
+                addCell(
+                    ImageLibrary.getBorderImageKey(null, direction, tile.x, tile.y),
+                    LayerId(unknown + direction.ordinal),
+                    tile.x,
+                    tile.y
+                )
+            }
+        }
+    }
+
+    private fun addCell(
         imageKey: String,
-        layerId: String,
+        layerId: LayerId,
         x: Int,
         y: Int
     ) {
-        val posx = x * 4 + if (y.rem(2) == 1) 2 else 0
-        val posy = maxY - y
+        val posX = x * 4 + if (y.rem(2) == 1) 2 else 0
+        val posY = maxY - y
 
         val resource = ResourceManager.getImageResource(imageKey, true)!!
 
@@ -75,17 +105,17 @@ class Map(val tiledMap: TiledMap, private val maxY: Int) {
         val file = resource.resourceLocator.toPath().toFile()
         cell.tile =
             StaticTiledMapTile(TextureRegion(Texture(FileHandle(file))))
-        (tiledMap.layers.get(layerId) as TiledMapTileLayer).setCell(posx, posy, cell)
+        (tiledMap.layers.get(layerId.key) as TiledMapTileLayer).setCell(posX, posY, cell)
     }
 
-    fun addLayer(
+    private fun addLayer(
         w: Float,
         h: Float,
-        name: String,
+        name: LayerId,
     ) {
         val tileWidth = 32
         val layer = TiledMapTileLayer(w.toInt(), h.toInt(), tileWidth, tileWidth)
-        layer.name = name
+        layer.name = name.key
         tiledMap.layers.add(layer)
     }
 }
@@ -95,8 +125,8 @@ private fun imageBorders(
     direction: Direction,
 ): List<Pair<Int, String>> {
     val tileType = tile.type
-    val x = tile.x;
-    val y = tile.y;
+    val x = tile.x
+    val y = tile.y
 
     val borderingTile = tile.getNeighbourOrNull(direction)
     if (borderingTile == null || !borderingTile.isExplored) return emptyList()
