@@ -27,38 +27,29 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.image.BufferedImage;
-import java.awt.image.RescaleOp;
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.Toolkit;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.logging.Level;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 
-import net.sf.freecol.client.gui.Size;
 import net.sf.freecol.common.io.sza.SimpleZippedAnimation;
 import net.sf.freecol.common.model.Ability;
-import net.sf.freecol.common.model.AbstractUnit;
 import net.sf.freecol.common.model.BuildableType;
 import net.sf.freecol.common.model.Building;
 import net.sf.freecol.common.model.BuildingType;
 import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.Direction;
 import net.sf.freecol.common.model.FoundingFather;
-import net.sf.freecol.common.model.FreeColSpecObjectType;
 import net.sf.freecol.common.model.FreeColObject;
-import net.sf.freecol.common.model.Goods;
 import net.sf.freecol.common.model.GoodsType;
 import net.sf.freecol.common.model.IndianSettlement;
 import net.sf.freecol.common.model.Location;
@@ -77,13 +68,11 @@ import net.sf.freecol.common.model.TileType;
 import net.sf.freecol.common.model.Unit;
 import net.sf.freecol.common.model.UnitType;
 import net.sf.freecol.common.resources.ImageCache;
-import net.sf.freecol.common.resources.ImageResource;
 import net.sf.freecol.common.resources.ResourceManager;
 import net.sf.freecol.common.resources.Video;
 import static net.sf.freecol.common.util.CollectionUtils.*;
-import static net.sf.freecol.common.util.ImageUtils.*;
 import static net.sf.freecol.common.util.StringUtils.*;
-
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Holds various images that can be called upon by others in order to display
@@ -946,8 +935,7 @@ public final class ImageLibrary {
      * @return The image at the given index.
      */
     public BufferedImage getBeachCornerImage(int index, int x, int y) {
-        final String key = "image.tile.model.tile.beach.corner" + index
-            + ".r" + ((isSpecialEven(x, y)) ? "0" : "1");
+        final String key = getEvenImageKey(index, x, y, "image.tile.model.tile.beach.corner");
         return this.imageCache.getSizedImage(key, this.tileSize, false);
     }
 
@@ -960,9 +948,12 @@ public final class ImageLibrary {
      * @return The image at the given index.
      */
     public BufferedImage getBeachEdgeImage(int index, int x, int y) {
-        final String key = "image.tile.model.tile.beach.edge" + index
-            + ".r"+ ((isSpecialEven(x, y)) ? "0" : "1");
+        final String key = getEvenImageKey(index, x, y, "image.tile.model.tile.beach.edge");
         return this.imageCache.getSizedImage(key, this.tileSize, false);
+    }
+
+    public static String getEvenImageKey(int index, int x, int y, String s) {
+        return s + index + ".r" + ((isSpecialEven(x, y)) ? "0" : "1");
     }
 
     /**
@@ -976,13 +967,18 @@ public final class ImageLibrary {
      */
     public BufferedImage getBorderImage(TileType type, Direction direction,
                                         int x, int y) {
-        final String key = "image.tile."
-            + ((type==null) ? "model.tile.unexplored" : type.getId())
-            + ".border." + direction
-            + ".r" + ((isSpecialEven(x, y)) ?  "0" : "1");
+        final String key = getBorderImageKey(type, direction, x, y);
         return this.imageCache.getSizedImage(key, this.tileSize, false);
     }
 
+    @NotNull
+    public static String getBorderImageKey(TileType type, Direction direction, int x, int y) {
+        final String key = "image.tile."
+            + ((type ==null) ? "model.tile.unexplored" : type.getId())
+            + ".border." + direction
+            + ".r" + ((isSpecialEven(x, y)) ?  "0" : "1");
+        return key;
+    }
 
     /**
      * Get the forest image for a terrain type.
@@ -1155,9 +1151,14 @@ public final class ImageLibrary {
      */
     public BufferedImage getRiverMouthImage(Direction direction, int magnitude,
                                             int x, int y) {
-        final String key = "image.tile.model.tile.delta." + direction
-            + ((magnitude == 1) ? ".small" : ".large");
+        final String key = getRiverMouthImageKey(direction, magnitude);
         return this.imageCache.getSizedImage(key, this.tileSize, false);
+    }
+
+    @NotNull
+    public static String getRiverMouthImageKey(Direction direction, int magnitude) {
+        return "image.tile.model.tile.delta." + direction
+            + ((magnitude == 1) ? ".small" : ".large");
     }
 
     /**

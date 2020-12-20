@@ -5,27 +5,21 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
-import com.badlogic.gdx.files.FileHandle
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.OrthographicCamera
-import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.input.GestureDetector
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TiledMapRenderer
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer
-import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile
 import net.sf.freecol.FreeCol
 import net.sf.freecol.client.FreeColClient
 import net.sf.freecol.client.gui.ImageLibrary
 import net.sf.freecol.common.io.FreeColSavegameFile
 import net.sf.freecol.common.io.FreeColTcFile
-import net.sf.freecol.common.resources.ResourceManager
+import net.sf.freecol.common.resources.ImageCache
 import net.sf.freecol.server.FreeColServer
 import java.io.File
 import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.toPath
 
 @ExperimentalPathApi
 class FreecolApplication : ApplicationAdapter() {
@@ -53,8 +47,6 @@ class FreecolApplication : ApplicationAdapter() {
 
 
     override fun create() {
-
-
         val w = Gdx.graphics.width.toFloat()
         val h = Gdx.graphics.height.toFloat()
 
@@ -62,27 +54,19 @@ class FreecolApplication : ApplicationAdapter() {
         camera.setToOrtho(false, w, h)
         camera.update()
 
-        val tiledMap = TiledMap()
-        val tileWidth = 32
-        val layer = TiledMapTileLayer(w.toInt(), h.toInt(), tileWidth, tileWidth)
+        val tiledMap = Map(TiledMap(), server.game.map.tileList.maxOf { it.y })
+
+        val imageCache = ImageCache()
+        val fixedImageLibrary = ImageLibrary(1f, imageCache)
 
         server.game.map.tileList.forEach { tile ->
             val tileType = tile.type
-            val x = tile.x * 4 + if (tile.y.rem(2) == 1) 2 else 0
-            val y = tile.y
+            tiledMap.addCell(ImageLibrary.getTerrainImageKey(tileType, tile.x, tile.y), "base", tile.x, tile.y)
 
-            val imageKey = ImageLibrary.getTerrainImageKey(tileType, x, y)
-            val resource = ResourceManager.getImageResource(imageKey, true)
-
-            val cell = TiledMapTileLayer.Cell()
-            cell.tile =
-                StaticTiledMapTile(TextureRegion(Texture(FileHandle(resource.resourceLocator.toPath().toFile()))))
-            layer.setCell(x, y, cell)
+            tiledMap.displayTileWithBeachAndBorder(tile)
         }
 
-        tiledMap.layers.add(layer)
-
-        tiledMapRenderer = OrthogonalTiledMapRenderer(tiledMap)
+        tiledMapRenderer = OrthogonalTiledMapRenderer(tiledMap.tiledMap)
 
         val gestureDetector = GestureDetector(object : GestureDetector.GestureAdapter() {
             override fun pan(x: Float, y: Float, deltaX: Float, deltaY: Float): Boolean {
@@ -101,9 +85,9 @@ class FreecolApplication : ApplicationAdapter() {
                 if (keycode == Input.Keys.DOWN)
                     camera.translate(0f, 32f)
                 if (keycode == Input.Keys.NUM_1)
-                    tiledMap.layers.get(0).isVisible = !tiledMap.layers.get(0).isVisible
+                    tiledMap.tiledMap.layers.get(0).isVisible = !tiledMap.tiledMap.layers.get(0).isVisible
                 if (keycode == Input.Keys.NUM_2)
-                    tiledMap.layers.get(1).isVisible = !tiledMap.layers.get(1).isVisible
+                    tiledMap.tiledMap.layers.get(1).isVisible = !tiledMap.tiledMap.layers.get(1).isVisible
                 return false
             }
 
