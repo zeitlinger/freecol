@@ -54,14 +54,10 @@ class FreecolApplication : ApplicationAdapter() {
         camera.setToOrtho(false, w, h)
         camera.update()
 
-        val tiledMap = Map(TiledMap(), server.game.map.tileList.maxOf { it.y })
+        val tiledMap = Map(server.game.map.tileList)
 
         val imageCache = ImageCache()
         val fixedImageLibrary = ImageLibrary(1f, imageCache)
-
-        server.game.map.tileList.forEach { tile ->
-            tiledMap.display(tile)
-        }
 
         tiledMapRenderer = OrthogonalTiledMapRenderer(tiledMap.tiledMap)
 

@@ -7,25 +7,49 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile
+import mu.KotlinLogging
 import net.sf.freecol.client.gui.ImageLibrary
 import net.sf.freecol.common.model.Direction
+import net.sf.freecol.common.model.LostCityRumour
+import net.sf.freecol.common.model.Resource
 import net.sf.freecol.common.model.Tile
+import net.sf.freecol.common.model.TileImprovement
+import net.sf.freecol.common.model.TileItem
 import net.sf.freecol.common.resources.ResourceManager
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.toPath
 
-data class LayerId(val key: String)
+data class LayerId(val key: String) {
+    init {
+        all.add(key)
+    }
+
+    companion object {
+        val all = mutableListOf<String>()
+    }
+}
 
 
 val beachEdge = LayerId("image.tile.model.tile.beach.edge")
 val beachCorner = LayerId("image.tile.model.tile.beach.corner")
 const val border = "border"
 val base = LayerId("base")
+val river = LayerId("river")
+val improvement = LayerId("improvement")
+val overlay = LayerId("overlay")
+val forest = LayerId("forest")
+val resource = LayerId("resource")
+val rumor = LayerId("rumor")
 const val unknown = "unknown"
 
 
 @ExperimentalPathApi
-class Map(val tiledMap: TiledMap, private val maxY: Int) {
+class Map(tiles: List<Tile>) {
+
+    private val maxY = tiles.maxOf { it.y } / 2
+    val tiledMap = TiledMap()
+
+    private val logger = KotlinLogging.logger {}
 
     init {
         val w = Gdx.graphics.width.toFloat()
@@ -40,14 +64,34 @@ class Map(val tiledMap: TiledMap, private val maxY: Int) {
         for (i in Direction.values().indices) {
             addLayer(w, h, LayerId(unknown + i))
         }
+        addLayer(w, h, river)
+        addLayer(w, h, improvement)
+        addLayer(w, h, overlay)
+        addLayer(w, h, forest)
+        addLayer(w, h, resource)
+        addLayer(w, h, rumor)
+
+        require(tiledMap.layers.map { it.name }.containsAll(LayerId.all))
+
+        tiles.forEach { tile ->
+            display(tile)
+        }
     }
 
     fun display(tile: Tile) {
         val tileType = tile.type
-        addCell(ImageLibrary.getTerrainImageKey(tileType, tile.x, tile.y), base, tile.x, tile.y)
+        addCell(tile, base, ImageLibrary.getTerrainImageKey(tileType, tile.x, tile.y))
 
         displayTileWithBeachAndBorder(tile)
         displayUnknownTileBorder(tile)
+
+        //todo: fog of war
+        // Apply fog of war to flat parts of all tiles
+//        val fow: RescaleOp? = null
+
+        val overlayKey = ImageLibrary.getOverlayImageInternalKey(tile.type, tile.id, ImageLibrary.TILE_OVERLAY_SIZE)
+//        val rop = if (player == null || player.canSee(t)) null else fow
+        displayTileItems(tile, overlayKey)
     }
 
     private fun displayTileWithBeachAndBorder(tile: Tile) {
@@ -61,17 +105,17 @@ class Map(val tiledMap: TiledMap, private val maxY: Int) {
         if (!tile.isLand && style > 0) {
             val edgeStyle = style shr 4
             if (edgeStyle > 0) {
-                addCell(ImageLibrary.getEvenImageKey(edgeStyle, x, y, beachEdge.key), beachEdge, x, y)
+                addCell(tile, beachEdge, ImageLibrary.getEvenImageKey(edgeStyle, x, y, beachEdge.key))
             }
             val cornerStyle = style and 15
             if (cornerStyle > 0) {
-                addCell(ImageLibrary.getEvenImageKey(cornerStyle, x, y, beachCorner.key), beachCorner, x, y)
+                addCell(tile, beachCorner, ImageLibrary.getEvenImageKey(cornerStyle, x, y, beachCorner.key))
             }
         }
 
         val imageBorders = Direction.values().flatMap { imageBorders(tile, it) }
         imageBorders.sortedByDescending { it.first }.forEachIndexed { index, b ->
-            addCell(b.second, LayerId(border + index), x, y)
+            addCell(tile, LayerId(border + index), b.second)
         }
     }
 
@@ -81,30 +125,90 @@ class Map(val tiledMap: TiledMap, private val maxY: Int) {
             val borderingTile = tile.getNeighbourOrNull(direction)
             if (borderingTile != null && !borderingTile.isExplored) {
                 addCell(
-                    ImageLibrary.getBorderImageKey(null, direction, tile.x, tile.y),
+                    tile,
                     LayerId(unknown + direction.ordinal),
-                    tile.x,
-                    tile.y
+                    ImageLibrary.getBorderImageKey(null, direction, tile.x, tile.y),
                 )
             }
         }
     }
 
-    private fun addCell(
-        imageKey: String,
-        layerId: LayerId,
-        x: Int,
-        y: Int
-    ) {
-        val posX = x * 4 + if (y.rem(2) == 1) 2 else 0
-        val posY = maxY - y
+    private fun displayTileItems(tile: Tile, overlayImage: String?) {
+        tile.completeItems.forEach {
+            displayTileItem(tile, it)
+        }
+        // Tile Overlays (eg. hills and mountains)
+        if (overlayImage != null) {
+            addCell(tile, overlay, overlayImage)
+        }
+        if (tile.isForested) {
+            addCell(
+                tile,
+                forest,
+                ImageLibrary.getForestImageKey(tile.type, tile.riverStyle, ImageLibrary.TILE_FOREST_SIZE)
+            )
+        }
+    }
 
+    private fun displayTileItem(tile: Tile, item: TileItem) {
+        if (item is TileImprovement) {
+            if (!item.isComplete) return
+            if (item.isRoad) {
+                //todo
+//                this.rp.displayRoad(g2d, tile)
+            } else if (item.isRiver) {
+                val style = item.style
+                if (style == null) { // This is all too common with broken maps
+                    logger.error("Null river style for $tile")
+                } else {
+                    addCell(tile, river, ImageLibrary.getRiverStyleKey(style.string))
+                }
+            } else {
+                val s = "image.tile." + item.type.id
+                if (ResourceManager.getImageResource(s, false) != null) {
+                    addCell(tile, improvement, s)
+                }
+            }
+        } else if (item is LostCityRumour) {
+            addCell(tile, rumor, ImageLibrary.LOST_CITY_RUMOUR, center = true)
+        } else if (item is Resource) {
+            addCell(tile, resource, ImageLibrary.getResourceTypeKey(item.type), center = true)
+        }
+    }
+
+    private fun addCell(
+        tile: Tile,
+        layerId: LayerId,
+        imageKey: String,
+        center: Boolean = false,
+    ) {
         val resource = ResourceManager.getImageResource(imageKey, true)!!
 
-        val cell = TiledMapTileLayer.Cell()
-        val file = resource.resourceLocator.toPath().toFile()
-        cell.tile =
-            StaticTiledMapTile(TextureRegion(Texture(FileHandle(file))))
+        val size = ImageLibrary.TILE_SIZE
+        val texture = Texture(FileHandle(resource.resourceLocator.toPath().toFile()))
+
+        var posX = tile.x * 2
+        val posY = (maxY - tile.y / 2)
+        var offsetX = 0f
+        var offsetY = 0f
+
+        if (tile.y.rem(2) == 1) {
+            posX++
+            offsetY -= size.height / 2
+        }
+
+        if (center) {
+            offsetX += (size.width - texture.width) / 2
+            offsetY += (size.height - texture.height) / 2
+        }
+
+        val cell = TiledMapTileLayer.Cell().apply {
+            this.tile = StaticTiledMapTile(TextureRegion(texture)).apply {
+                this.offsetX = offsetX
+                this.offsetY = offsetY
+            }
+        }
+
         (tiledMap.layers.get(layerId.key) as TiledMapTileLayer).setCell(posX, posY, cell)
     }
 
@@ -113,7 +217,7 @@ class Map(val tiledMap: TiledMap, private val maxY: Int) {
         h: Float,
         name: LayerId,
     ) {
-        val tileWidth = 32
+        val tileWidth = ImageLibrary.TILE_SIZE.width / 2
         val layer = TiledMapTileLayer(w.toInt(), h.toInt(), tileWidth, tileWidth)
         layer.name = name.key
         tiledMap.layers.add(layer)
