@@ -1397,7 +1397,7 @@ public final class ImageLibrary {
      * @param nativeEthnicity If true the unit is a former native.
      * @return A suitable key.
      */
-    private static String getUnitTypeImageKey(UnitType unitType, Player owner,
+    public static String getUnitTypeImageKey(UnitType unitType, Player owner,
             String roleId,
             boolean nativeEthnicity) {
         // Units that can only be native don't need the .native key part

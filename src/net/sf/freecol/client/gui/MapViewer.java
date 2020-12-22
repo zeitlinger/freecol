@@ -30,7 +30,6 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
@@ -40,23 +39,18 @@ import java.awt.geom.Point2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.RescaleOp;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
-import javax.swing.JLayeredPane;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.sf.freecol.client.ClientOptions;
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.control.FreeColClientHolder;
-import net.sf.freecol.client.control.MapTransform;
-import net.sf.freecol.client.gui.animation.Animation;
 import net.sf.freecol.client.gui.GUI.ViewMode;
 import net.sf.freecol.common.debug.FreeColDebugger;
 import net.sf.freecol.common.i18n.Messages;
@@ -64,8 +58,6 @@ import net.sf.freecol.common.model.Ability;
 import net.sf.freecol.common.model.BuildableType;
 import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.Direction;
-import net.sf.freecol.common.model.FreeColGameObject;
-import net.sf.freecol.common.model.Game;
 import net.sf.freecol.common.model.IndianSettlement;
 import net.sf.freecol.common.model.Map;
 import net.sf.freecol.common.model.PathNode;
@@ -77,8 +69,6 @@ import net.sf.freecol.common.model.Turn;
 import net.sf.freecol.common.model.Unit;
 import net.sf.freecol.common.option.GameOptions;
 import static net.sf.freecol.common.util.StringUtils.*;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 
 /**
@@ -138,8 +128,8 @@ public final class MapViewer extends FreeColClientHolder {
     private static final float MAP_SCALE_STEP = 0.25f;
 
     /** The height offset to paint a Unit at (in pixels). */
-    private static final int UNIT_OFFSET = 20,
-        OTHER_UNITS_OFFSET_X = -5, // Relative to the state indicator.
+    public static final int UNIT_OFFSET = 20;
+    private static final int OTHER_UNITS_OFFSET_X = -5, // Relative to the state indicator.
         OTHER_UNITS_OFFSET_Y = 1,
         OTHER_UNITS_WIDTH = 3,
         MAX_OTHER_UNITS = 10;
