@@ -16,6 +16,7 @@ import net.sf.freecol.common.model.Tile
 import net.sf.freecol.common.model.TileImprovement
 import net.sf.freecol.common.model.TileItem
 import net.sf.freecol.common.resources.ResourceManager
+import java.io.File
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.toPath
 
@@ -34,12 +35,7 @@ val beachEdge = LayerId("image.tile.model.tile.beach.edge")
 val beachCorner = LayerId("image.tile.model.tile.beach.corner")
 const val border = "border"
 val base = LayerId("base")
-val river = LayerId("river")
-val improvement = LayerId("improvement")
-val overlay = LayerId("overlay")
-val forest = LayerId("forest")
-val resource = LayerId("resource")
-val rumor = LayerId("rumor")
+const val improvement = "improvement"
 const val unknown = "unknown"
 
 
@@ -64,12 +60,9 @@ class Map(tiles: List<Tile>) {
         for (i in Direction.values().indices) {
             addLayer(w, h, LayerId(unknown + i))
         }
-        addLayer(w, h, river)
-        addLayer(w, h, improvement)
-        addLayer(w, h, overlay)
-        addLayer(w, h, forest)
-        addLayer(w, h, resource)
-        addLayer(w, h, rumor)
+        for (i in 0..10) {
+            addLayer(w, h, LayerId(improvement + i))
+        }
 
         require(tiledMap.layers.map { it.name }.containsAll(LayerId.all))
 
@@ -134,45 +127,61 @@ class Map(tiles: List<Tile>) {
     }
 
     private fun displayTileItems(tile: Tile, overlayImage: String?) {
-        tile.completeItems.forEach {
-            displayTileItem(tile, it)
+        var index = 0
+        val items = tile.completeItems.sortedBy { it.zIndex }
+
+        fun layerId() = LayerId(improvement + index).also { index++ }
+
+        fun display(pred: (TileItem) -> Boolean) {
+            items.filter(pred).forEach {
+                displayTileItem(tile, it, layerId())
+            }
         }
+        display { it.zIndex < Tile.OVERLAY_ZINDEX }
+
         // Tile Overlays (eg. hills and mountains)
         if (overlayImage != null) {
-            addCell(tile, overlay, overlayImage)
+            addCell(tile, layerId(), overlayImage)
         }
+
+        display { it.zIndex in Tile.OVERLAY_ZINDEX..Tile.FOREST_ZINDEX }
+
         if (tile.isForested) {
             addCell(
                 tile,
-                forest,
+                layerId(),
                 ImageLibrary.getForestImageKey(tile.type, tile.riverStyle, ImageLibrary.TILE_FOREST_SIZE)
             )
         }
+
+        display { it.zIndex > Tile.FOREST_ZINDEX }
     }
 
-    private fun displayTileItem(tile: Tile, item: TileItem) {
-        if (item is TileImprovement) {
-            if (!item.isComplete) return
-            if (item.isRoad) {
-                //todo
-//                this.rp.displayRoad(g2d, tile)
-            } else if (item.isRiver) {
-                val style = item.style
-                if (style == null) { // This is all too common with broken maps
-                    logger.error("Null river style for $tile")
-                } else {
-                    addCell(tile, river, ImageLibrary.getRiverStyleKey(style.string))
-                }
-            } else {
-                val s = "image.tile." + item.type.id
-                if (ResourceManager.getImageResource(s, false) != null) {
-                    addCell(tile, improvement, s)
+    private fun displayTileItem(tile: Tile, item: TileItem, layerId: LayerId) {
+        when (item) {
+            is TileImprovement -> {
+                when {
+                    item.isRoad -> {
+                        addFile(tile, layerId, getRoad(tile))
+                    }
+                    item.isRiver -> {
+                        val style = item.style
+                        if (style == null) { // This is all too common with broken maps
+                            logger.error("Null river style for $tile")
+                        } else {
+                            addCell(tile, layerId, ImageLibrary.getRiverStyleKey(style.string))
+                        }
+                    }
+                    else -> {
+                        val key = "image.tile." + item.type.id
+                        if (ResourceManager.getImageResource(key, false) != null) {
+                            addCell(tile, layerId, key)
+                        }
+                    }
                 }
             }
-        } else if (item is LostCityRumour) {
-            addCell(tile, rumor, ImageLibrary.LOST_CITY_RUMOUR, center = true)
-        } else if (item is Resource) {
-            addCell(tile, resource, ImageLibrary.getResourceTypeKey(item.type), center = true)
+            is LostCityRumour -> addCell(tile, layerId, ImageLibrary.LOST_CITY_RUMOUR, center = true)
+            is Resource -> addCell(tile, layerId, ImageLibrary.getResourceTypeKey(item.type), center = true)
         }
     }
 
@@ -183,10 +192,26 @@ class Map(tiles: List<Tile>) {
         center: Boolean = false,
     ) {
         val resource = ResourceManager.getImageResource(imageKey, true)!!
+        val file = resource.resourceLocator.toPath().toFile()
+        addFile(tile, layerId, file, center)
+    }
 
+    private fun addFile(
+        tile: Tile,
+        layerId: LayerId,
+        file: File,
+        center: Boolean = false
+    ) {
+        addTexture(tile, Texture(FileHandle(file)), layerId, center)
+    }
+
+    private fun addTexture(
+        tile: Tile,
+        texture: Texture,
+        layerId: LayerId,
+        center: Boolean = false,
+    ) {
         val size = ImageLibrary.TILE_SIZE
-        val texture = Texture(FileHandle(resource.resourceLocator.toPath().toFile()))
-
         var posX = tile.x * 2
         val posY = (maxY - tile.y / 2)
         var offsetX = 0f
@@ -224,6 +249,17 @@ class Map(tiles: List<Tile>) {
     }
 }
 
+fun getRoad(tile: Tile): File {
+    val map = tile.map
+    val x = tile.x
+    val y = tile.y
+
+    val num: Int = Direction.allDirections
+        .filter { d -> map.getTile(d.step(x, y))?.road?.isComplete ?: false }
+        .fold(0) { acc, direction -> (1 shl direction.ordinal) + acc }
+    return File("data/rules/classic/resources/images/road/road$num.png")
+}
+
 private fun imageBorders(
     tile: Tile,
     direction: Direction,
@@ -253,8 +289,9 @@ private fun imageBorders(
                 } else {
                     listOf(pair)
                 }
+            } else {
+                listOf(pair)
             }
-            listOf(pair)
         }
         !tile.isLand || borderingTile.isLand -> {
             val bTIndex = borderingTileType.index

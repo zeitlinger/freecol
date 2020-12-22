@@ -112,11 +112,6 @@ public final class RoadPainter {
      * @param tile The {@code Tile} with the road.
      */
     public void displayRoad(Graphics2D g, Tile tile) {
-        Color oldColor = g.getColor();
-        g.setColor(ImageLibrary.getRoadColor());
-        g.setStroke(roadStroke);
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                           RenderingHints.VALUE_ANTIALIAS_ON);
 
         final Map map = tile.getMap();
         final int x = tile.getX();
@@ -129,6 +124,15 @@ public final class RoadPainter {
                 && r.isComplete();
         };
         List<Direction> directions = transform(Direction.allDirections, borderPred);
+        displayRoad(g, directions);
+    }
+
+    public void displayRoad(Graphics2D g, List<Direction> directions) {
+        Color oldColor = g.getColor();
+        g.setColor(ImageLibrary.getRoadColor());
+        g.setStroke(roadStroke);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                           RenderingHints.VALUE_ANTIALIAS_ON);
         List<Point2D.Float> points = transform(directions, alwaysTrue(),
                                                d -> corners.get(d));
         GeneralPath path = new GeneralPath();
