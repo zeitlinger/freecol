@@ -5,28 +5,32 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.OrthographicCamera
+import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.input.GestureDetector
-import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TiledMapRenderer
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer
 import net.sf.freecol.FreeCol
 import net.sf.freecol.client.FreeColClient
-import net.sf.freecol.client.gui.ImageLibrary
 import net.sf.freecol.common.io.FreeColSavegameFile
 import net.sf.freecol.common.io.FreeColTcFile
-import net.sf.freecol.common.resources.ImageCache
 import net.sf.freecol.server.FreeColServer
 import java.io.File
 import kotlin.io.path.ExperimentalPathApi
 
+
 @ExperimentalPathApi
 class FreecolApplication : ApplicationAdapter() {
+    private lateinit var tiledMap: Map
     private lateinit var camera: OrthographicCamera
     private lateinit var tiledMapRenderer: TiledMapRenderer
     private val server: FreeColServer
     private val client: FreeColClient
+    private lateinit var batch: SpriteBatch
+    private lateinit var font: BitmapFont
 
     init {
         FreeCol.setHeadless(true)
@@ -52,11 +56,13 @@ class FreecolApplication : ApplicationAdapter() {
 
         camera = OrthographicCamera()
         camera.setToOrtho(false, w, h)
-        camera.update()
 
-        val tiledMap = Map(server.game.map.tileList, client)
+        tiledMap = Map(server.game.map.tileList, client)
 
         tiledMapRenderer = OrthogonalTiledMapRenderer(tiledMap.tiledMap)
+        batch = SpriteBatch()
+        font = BitmapFont()
+        font.color = Color.WHITE
 
         val gestureDetector = GestureDetector(object : GestureDetector.GestureAdapter() {
             override fun pan(x: Float, y: Float, deltaX: Float, deltaY: Float): Boolean {
@@ -66,18 +72,26 @@ class FreecolApplication : ApplicationAdapter() {
         })
         val key = object : InputAdapter() {
             override fun keyUp(keycode: Int): Boolean {
-                if (keycode == Input.Keys.LEFT)
-                    camera.translate(-32f, 0f)
-                if (keycode == Input.Keys.RIGHT)
-                    camera.translate(32f, 0f)
-                if (keycode == Input.Keys.UP)
-                    camera.translate(0f, -32f)
-                if (keycode == Input.Keys.DOWN)
-                    camera.translate(0f, 32f)
-                if (keycode == Input.Keys.NUM_1)
-                    tiledMap.tiledMap.layers.get(0).isVisible = !tiledMap.tiledMap.layers.get(0).isVisible
-                if (keycode == Input.Keys.NUM_2)
-                    tiledMap.tiledMap.layers.get(1).isVisible = !tiledMap.tiledMap.layers.get(1).isVisible
+                when (keycode) {
+                    Input.Keys.LEFT -> {
+                        camera.translate(-32f, 0f)
+                    }
+                    Input.Keys.RIGHT -> {
+                        camera.translate(32f, 0f)
+                    }
+                    Input.Keys.UP -> {
+                        camera.translate(0f, -32f)
+                    }
+                    Input.Keys.DOWN -> {
+                        camera.translate(0f, 32f)
+                    }
+                    Input.Keys.NUM_1 -> {
+                        tiledMap.tiledMap.layers.get(0).isVisible = !tiledMap.tiledMap.layers.get(0).isVisible
+                    }
+                    Input.Keys.NUM_2 -> {
+                        tiledMap.tiledMap.layers.get(1).isVisible = !tiledMap.tiledMap.layers.get(1).isVisible
+                    }
+                }
                 return false
             }
 
@@ -96,7 +110,17 @@ class FreecolApplication : ApplicationAdapter() {
         camera.update()
         tiledMapRenderer.setView(camera)
         tiledMapRenderer.render()
+
+        batch.projectionMatrix = camera.combined
+        batch.begin();
+        client.game.map.tileList.mapNotNull { it.settlement }.forEach {
+            tiledMap.displaySettlementLabels(it, client.myPlayer, batch, font)
+        }
+        batch.end();
     }
 
-
+    override fun dispose() {
+        batch.dispose();
+        font.dispose();
+    }
 }

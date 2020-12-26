@@ -2,27 +2,38 @@ package org.freecol.core
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.files.FileHandle
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
+import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer
 import com.badlogic.gdx.maps.tiled.tiles.StaticTiledMapTile
+import com.badlogic.gdx.math.Vector2
+import com.badlogic.gdx.utils.Align
 import mu.KotlinLogging
 import net.sf.freecol.client.FreeColClient
 import net.sf.freecol.client.gui.ImageLibrary
 import net.sf.freecol.client.gui.MapViewer
+import net.sf.freecol.common.i18n.Messages
+import net.sf.freecol.common.model.Colony
 import net.sf.freecol.common.model.Direction
 import net.sf.freecol.common.model.LostCityRumour
+import net.sf.freecol.common.model.Player
 import net.sf.freecol.common.model.Resource
+import net.sf.freecol.common.model.Settlement
 import net.sf.freecol.common.model.Tile
 import net.sf.freecol.common.model.TileImprovement
 import net.sf.freecol.common.model.TileItem
+import net.sf.freecol.common.model.Turn
 import net.sf.freecol.common.model.Unit
 import net.sf.freecol.common.resources.ResourceManager
-import java.awt.Point
 import java.io.File
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.toPath
+
 
 data class LayerId(val key: String) {
     init {
@@ -34,7 +45,6 @@ data class LayerId(val key: String) {
     }
 }
 
-
 val beachEdge = LayerId("image.tile.model.tile.beach.edge")
 val beachCorner = LayerId("image.tile.model.tile.beach.corner")
 const val borderId = "border"
@@ -44,6 +54,7 @@ val unitLayer = LayerId("unit")
 const val improvement = "improvement"
 const val unknown = "unknown"
 
+val tileWidth = ImageLibrary.TILE_SIZE.width / 2
 
 @ExperimentalPathApi
 class Map(tiles: List<Tile>, private val client: FreeColClient) {
@@ -246,16 +257,106 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
         val key =
             ImageLibrary.getUnitTypeImageKey(unit.type, unit.owner, unit.role.id, unit.hasNativeEthnicity())
         val texture = texture(imageFile(key))
-        addTexture(tile, texture, unitLayer, point = calculateUnitImagePositionInTile(texture))
+        addTexture(tile, texture, unitLayer, offset = calculateUnitImagePositionInTile(texture))
     }
 
-    private fun calculateUnitImagePositionInTile(texture: Texture): Point {
+    private fun calculateUnitImagePositionInTile(texture: Texture): Vector2 {
         val tile = ImageLibrary.TILE_SIZE
         val data = texture.textureData
 
         val unitX = (tile.width - data.width) / 2
         val unitY = (tile.height - data.height) / 2 + MapViewer.UNIT_OFFSET
-        return Point(unitX, unitY)
+        return Vector2(unitX.toFloat(), unitY.toFloat())
+    }
+
+    fun displaySettlementLabels(
+        settlement: Settlement,
+        player: Player,
+        batch: SpriteBatch,
+        font: BitmapFont,
+    ) {
+        val name = Messages.message(settlement.getLocationLabelFor(player)) ?: return
+        val backgroundColor = (settlement.owner.nationColor?.toColor() ?: Color.WHITE).let {
+            it.cpy().apply { a = 0.5f }
+        }
+        var yOffset: Int = ImageLibrary.TILE_SIZE.height
+        var text = name
+        if (settlement is Colony && settlement.getOwner() === player) {
+            val buildable = settlement.currentlyBuilding
+            if (buildable != null) {
+                val t = "\n" + (Messages.getName(buildable) + " " +
+                    Turn.getTurnsText(settlement.getTurnsToComplete(buildable)))
+                text += t
+            }
+        }
+        val l = GlyphLayout(font, text, 0, text.length, font.color, 0f, Align.center, false, null)
+
+        val origin = getTileOrigin(settlement.tile).absolute
+
+        font.draw(
+            batch, l, origin.x + (ImageLibrary.TILE_SIZE.width ) / 2,
+            origin.y + (ImageLibrary.TILE_SIZE.height + l.height) / 2
+        )
+
+//        val spacing = 3
+//        var leftImage: BufferedImage? = null
+//        var rightImage: BufferedImage? = null
+//        if (settlement is Colony) {
+//            val string = Integer.toString(settlement.apparentUnitCount)
+//            leftImage = MapViewer.createLabel(
+//                g2d, string,
+//                (if ((settlement.preferredSizeChange > 0)) this.fontItalic else this.fontNormal),
+//                backgroundColor
+//            )
+//            if (player.owns(settlement)) {
+//                val bonusProduction = settlement.productionBonus
+//                val bonus =
+//                    if ((bonusProduction > 0)) "+$bonusProduction" else Integer.toString(bonusProduction)
+//                rightImage = MapViewer.createLabel(
+//                    g2d, bonus + "/" + settlement.unitsToAdd, this.fontNormal,
+//                    backgroundColor
+//                )
+//            }
+//        } else if (settlement is IndianSettlement) {
+//            if (settlement.type.isCapital) {
+//                leftImage = MapViewer.createCapitalLabel(
+//                    nameImage.height,
+//                    5, backgroundColor
+//                )
+//            }
+//            val missionary = settlement.missionary
+//            if (missionary != null) {
+//                val expert = missionary.hasAbility(Ability.EXPERT_MISSIONARY)
+//                backgroundColor = missionary.owner.nationColor
+//                backgroundColor = Color(
+//                    backgroundColor.red,
+//                    backgroundColor.green,
+//                    backgroundColor.blue, 128
+//                )
+//                rightImage = MapViewer.createReligiousMissionLabel(
+//                    nameImage.height, 5,
+//                    backgroundColor, expert
+//                )
+//            }
+//        }
+//        val width: Int = this.lib.scaleInt(
+//            (nameImage.width
+//                + (if ((leftImage == null)) 0 else leftImage.width + spacing)
+//                + (if ((rightImage == null)) 0 else rightImage.width + spacing))
+//        )
+//        var xOffset: Int = (this.tileWidth - width) / 2
+//        yOffset -= this.lib.scaleInt(nameImage.height) / 2
+//        if (leftImage != null) {
+//            g2d.drawImage(leftImage, rop, xOffset, yOffset)
+//            xOffset += this.lib.scaleInt(leftImage.width + spacing)
+//        }
+//        g2d.drawImage(nameImage, rop, xOffset, yOffset)
+//        if (rightImage != null) {
+//            xOffset += this.lib.scaleInt(nameImage.width + spacing)
+//            g2d.drawImage(rightImage, rop, xOffset, yOffset)
+//        }
+//
+//    }
     }
 
     private fun addImageResource(
@@ -283,43 +384,55 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
 
     private fun texture(file: File) = Texture(FileHandle(file))
 
+    data class TileOrigin(val cellX: Int, val cellY: Int, val offset: Vector2) {
+        val absolute: Vector2 = Vector2(cellX.toFloat() * tileWidth, cellY.toFloat() * tileWidth).add(offset)
+    }
+
+    fun getTileOrigin(
+        tile: Tile,
+        offset: Vector2? = null
+    ): TileOrigin {
+        val size = ImageLibrary.TILE_SIZE
+        var posX = tile.x * 2
+        val posY = (maxY - tile.y / 2)
+        val o = Vector2(0f, 0f)
+
+        if (tile.y.rem(2) == 1) {
+            posX++
+            o.y -= size.height / 2
+        }
+
+        return TileOrigin(posX, posY, offset?.let { o.add(offset) } ?: o)
+    }
+
     private fun addTexture(
         tile: Tile,
         texture: Texture,
         layerId: LayerId,
         center: Boolean = false,
-        point: Point? = null,
+        offset: Vector2? = null,
     ) {
-        val size = ImageLibrary.TILE_SIZE
-        var posX = tile.x * 2
-        val posY = (maxY - tile.y / 2)
-        var offsetX = 0f
-        var offsetY = 0f
+        val p = if (center) {
+            val size = ImageLibrary.TILE_SIZE
 
-        if (tile.y.rem(2) == 1) {
-            posX++
-            offsetY -= size.height / 2
+            Vector2(
+                (size.width - texture.width).toFloat() / 2,
+                (size.height - texture.height).toFloat() / 2
+            )
+        } else {
+            offset
         }
 
-        when {
-            point != null -> {
-                offsetX += point.x.toFloat()
-                offsetY += point.y.toFloat()
-            }
-            center -> {
-                offsetX += (size.width - texture.width) / 2
-                offsetY += (size.height - texture.height) / 2
-            }
-        }
+        val origin = getTileOrigin(tile, p)
 
         val cell = TiledMapTileLayer.Cell().apply {
             this.tile = StaticTiledMapTile(TextureRegion(texture)).apply {
-                this.offsetX = offsetX
-                this.offsetY = offsetY
+                this.offsetX = origin.offset.x
+                this.offsetY = origin.offset.y
             }
         }
 
-        (tiledMap.layers.get(layerId.key) as TiledMapTileLayer).setCell(posX, posY, cell)
+        (tiledMap.layers.get(layerId.key) as TiledMapTileLayer).setCell(origin.cellX, origin.cellY, cell)
     }
 
     private fun addLayer(
@@ -327,7 +440,6 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
         h: Float,
         name: LayerId,
     ) {
-        val tileWidth = ImageLibrary.TILE_SIZE.width / 2
         val layer = TiledMapTileLayer(w.toInt(), h.toInt(), tileWidth, tileWidth)
         layer.name = name.key
         tiledMap.layers.add(layer)
@@ -398,3 +510,5 @@ private fun imageBorders(
     }
 }
 
+
+fun java.awt.Color.toColor() = Color(red.toFloat(), green.toFloat(), blue.toFloat(), alpha.toFloat())

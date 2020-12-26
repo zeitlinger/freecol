@@ -12,6 +12,10 @@ object DesktopLauncher {
             title = "Freecol"
             width = 1580
             height = 900
+            useGL30 = true
+            vSyncEnabled = false
+            foregroundFPS = 10
+            backgroundFPS = -1
         })
     }
 }
