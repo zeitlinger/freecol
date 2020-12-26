@@ -13,42 +13,17 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.input.GestureDetector
 import com.badlogic.gdx.maps.tiled.TiledMapRenderer
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer
-import net.sf.freecol.FreeCol
 import net.sf.freecol.client.FreeColClient
-import net.sf.freecol.common.io.FreeColSavegameFile
-import net.sf.freecol.common.io.FreeColTcFile
-import net.sf.freecol.server.FreeColServer
-import java.io.File
 import kotlin.io.path.ExperimentalPathApi
 
 
 @ExperimentalPathApi
-class FreecolApplication : ApplicationAdapter() {
-    private lateinit var tiledMap: Map
+class FreecolApplication(val client: FreeColClient) : ApplicationAdapter() {
+    lateinit var tiledMap: Map
     private lateinit var camera: OrthographicCamera
     private lateinit var tiledMapRenderer: TiledMapRenderer
-    private val server: FreeColServer
-    private val client: FreeColClient
     private lateinit var batch: SpriteBatch
     private lateinit var font: BitmapFont
-
-    init {
-        FreeCol.setHeadless(true)
-
-        FreeColTcFile.loadTCs()
-        val specification = FreeColTcFile.getFreeColTcFile("freecol").specification
-        val filename =
-            "/home/gzeitlinger/.local/share/freecol/save/autosave/Autosave-866aa34f_Spanish_1643_2_Autumn.fsg"
-        val out = File(filename)
-        val savegame = FreeColSavegameFile(out)
-        server = FreeColServer(savegame, specification, FreeCol.getServerPort(), "mapTransformer")
-
-        client = FreeColClient(
-            null, null, FreeCol.GUI_SCALE_DEFAULT, null,
-            null, false, false, out, specification
-        )
-    }
-
 
     override fun create() {
         val w = Gdx.graphics.width.toFloat()
@@ -57,7 +32,7 @@ class FreecolApplication : ApplicationAdapter() {
         camera = OrthographicCamera()
         camera.setToOrtho(false, w, h)
 
-        tiledMap = Map(server.game.map.tileList, client)
+        tiledMap = Map(client.freeColServer.game.map.tileList, client)
 
         tiledMapRenderer = OrthogonalTiledMapRenderer(tiledMap.tiledMap)
         batch = SpriteBatch()

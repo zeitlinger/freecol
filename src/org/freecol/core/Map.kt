@@ -62,7 +62,7 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
     private val maxY = tiles.maxOf { it.y } / 2
     val tiledMap = TiledMap()
 
-    private val activeUnit: Unit? = null
+    val activeUnit: Unit? = null
 
     private val logger = KotlinLogging.logger {}
 
