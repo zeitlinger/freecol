@@ -55,9 +55,10 @@ const val improvement = "improvement"
 const val unknown = "unknown"
 
 val tileWidth = ImageLibrary.TILE_SIZE.width / 2
+val textureCache = mutableMapOf<FileHandle, Texture>()
 
 @ExperimentalPathApi
-class Map(tiles: List<Tile>, private val client: FreeColClient) {
+class Map(tiles: List<Tile>) {
 
     private val maxY = tiles.maxOf { it.y } / 2
     val tiledMap = TiledMap()
@@ -106,7 +107,7 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
         val overlayKey = ImageLibrary.getOverlayImageInternalKey(tile.type, tile.id, ImageLibrary.TILE_OVERLAY_SIZE)
 //        val rop = if (player == null || player.canSee(t)) null else fow
         displayTileItems(tile, overlayKey)
-        displaySettlementWithChipsOrPopulationNumber(tile)
+        displaySettlement(tile)
         findUnitInFront(tile)?.let { displayUnit(tile, it) }
     }
 
@@ -215,7 +216,7 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
      *
      * @param tile The Tile to draw.
      */
-    private fun displaySettlementWithChipsOrPopulationNumber(tile: Tile) {
+    private fun displaySettlement(tile: Tile) {
         val settlement = tile.settlement ?: return
 
         val key = ImageLibrary.getSettlementKey(settlement)
@@ -275,18 +276,22 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
         batch: SpriteBatch,
         font: BitmapFont,
     ) {
-        val name = Messages.message(settlement.getLocationLabelFor(player)) ?: return
-        val backgroundColor = (settlement.owner.nationColor?.toColor() ?: Color.WHITE).let {
-            it.cpy().apply { a = 0.5f }
-        }
-        var yOffset: Int = ImageLibrary.TILE_SIZE.height
-        var text = name
-        if (settlement is Colony && settlement.getOwner() === player) {
+        var text = Messages.message(settlement.getLocationLabelFor(player)) ?: return
+        if (settlement is Colony) {
+            if (player.owns(settlement)) {
+                val bonusProduction = settlement.productionBonus
+                val bonus =
+                    if (bonusProduction > 0) "+$bonusProduction" else bonusProduction.toString()
+
+                text += " (${settlement.apparentUnitCount}, $bonus/${settlement.unitsToAdd})"
+
             val buildable = settlement.currentlyBuilding
             if (buildable != null) {
-                val t = "\n" + (Messages.getName(buildable) + " " +
-                    Turn.getTurnsText(settlement.getTurnsToComplete(buildable)))
-                text += t
+                    val turnsText = Turn.getTurnsText(settlement.getTurnsToComplete(buildable))
+                    text += "\n${Messages.getName(buildable)} $turnsText"
+                }
+            } else {
+                text += " (${settlement.apparentUnitCount})"
             }
         }
         val l = GlyphLayout(font, text, 0, text.length, font.color, 0f, Align.center, false, null)
@@ -294,69 +299,9 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
         val origin = getTileOrigin(settlement.tile).absolute
 
         font.draw(
-            batch, l, origin.x + (ImageLibrary.TILE_SIZE.width ) / 2,
+            batch, l, origin.x + (ImageLibrary.TILE_SIZE.width) / 2,
             origin.y + (ImageLibrary.TILE_SIZE.height + l.height) / 2
         )
-
-//        val spacing = 3
-//        var leftImage: BufferedImage? = null
-//        var rightImage: BufferedImage? = null
-//        if (settlement is Colony) {
-//            val string = Integer.toString(settlement.apparentUnitCount)
-//            leftImage = MapViewer.createLabel(
-//                g2d, string,
-//                (if ((settlement.preferredSizeChange > 0)) this.fontItalic else this.fontNormal),
-//                backgroundColor
-//            )
-//            if (player.owns(settlement)) {
-//                val bonusProduction = settlement.productionBonus
-//                val bonus =
-//                    if ((bonusProduction > 0)) "+$bonusProduction" else Integer.toString(bonusProduction)
-//                rightImage = MapViewer.createLabel(
-//                    g2d, bonus + "/" + settlement.unitsToAdd, this.fontNormal,
-//                    backgroundColor
-//                )
-//            }
-//        } else if (settlement is IndianSettlement) {
-//            if (settlement.type.isCapital) {
-//                leftImage = MapViewer.createCapitalLabel(
-//                    nameImage.height,
-//                    5, backgroundColor
-//                )
-//            }
-//            val missionary = settlement.missionary
-//            if (missionary != null) {
-//                val expert = missionary.hasAbility(Ability.EXPERT_MISSIONARY)
-//                backgroundColor = missionary.owner.nationColor
-//                backgroundColor = Color(
-//                    backgroundColor.red,
-//                    backgroundColor.green,
-//                    backgroundColor.blue, 128
-//                )
-//                rightImage = MapViewer.createReligiousMissionLabel(
-//                    nameImage.height, 5,
-//                    backgroundColor, expert
-//                )
-//            }
-//        }
-//        val width: Int = this.lib.scaleInt(
-//            (nameImage.width
-//                + (if ((leftImage == null)) 0 else leftImage.width + spacing)
-//                + (if ((rightImage == null)) 0 else rightImage.width + spacing))
-//        )
-//        var xOffset: Int = (this.tileWidth - width) / 2
-//        yOffset -= this.lib.scaleInt(nameImage.height) / 2
-//        if (leftImage != null) {
-//            g2d.drawImage(leftImage, rop, xOffset, yOffset)
-//            xOffset += this.lib.scaleInt(leftImage.width + spacing)
-//        }
-//        g2d.drawImage(nameImage, rop, xOffset, yOffset)
-//        if (rightImage != null) {
-//            xOffset += this.lib.scaleInt(nameImage.width + spacing)
-//            g2d.drawImage(rightImage, rop, xOffset, yOffset)
-//        }
-//
-//    }
     }
 
     private fun addImageResource(
@@ -382,13 +327,13 @@ class Map(tiles: List<Tile>, private val client: FreeColClient) {
         addTexture(tile, texture(file), layerId, center)
     }
 
-    private fun texture(file: File) = Texture(FileHandle(file))
+    private fun texture(file: File) = textureCache.computeIfAbsent(FileHandle(file), ::Texture)
 
     data class TileOrigin(val cellX: Int, val cellY: Int, val offset: Vector2) {
         val absolute: Vector2 = Vector2(cellX.toFloat() * tileWidth, cellY.toFloat() * tileWidth).add(offset)
     }
 
-    fun getTileOrigin(
+    private fun getTileOrigin(
         tile: Tile,
         offset: Vector2? = null
     ): TileOrigin {

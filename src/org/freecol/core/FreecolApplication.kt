@@ -29,10 +29,9 @@ class FreecolApplication(val client: FreeColClient) : ApplicationAdapter() {
         val w = Gdx.graphics.width.toFloat()
         val h = Gdx.graphics.height.toFloat()
 
-        camera = OrthographicCamera()
-        camera.setToOrtho(false, w, h)
+        camera = OrthographicCamera(w, h)
 
-        tiledMap = Map(client.freeColServer.game.map.tileList, client)
+        tiledMap = Map(client.freeColServer.game.map.tileList)
 
         tiledMapRenderer = OrthogonalTiledMapRenderer(tiledMap.tiledMap)
         batch = SpriteBatch()
@@ -87,15 +86,15 @@ class FreecolApplication(val client: FreeColClient) : ApplicationAdapter() {
         tiledMapRenderer.render()
 
         batch.projectionMatrix = camera.combined
-        batch.begin();
+        batch.begin()
         client.game.map.tileList.mapNotNull { it.settlement }.forEach {
             tiledMap.displaySettlementLabels(it, client.myPlayer, batch, font)
         }
-        batch.end();
+        batch.end()
     }
 
     override fun dispose() {
-        batch.dispose();
-        font.dispose();
+        batch.dispose()
+        font.dispose()
     }
 }
