@@ -697,9 +697,6 @@ public class SwingGUI extends GUI {
      */
     @Override
     public void showOpeningVideo(final String userMsg, Runnable callback) {
-        final boolean play = getFreeColClient().getSoundController()
-            .canPlaySound();
-        this.canvas.playVideo("video.opening", !play, callback);
     }
 
     /**

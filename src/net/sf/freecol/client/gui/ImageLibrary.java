@@ -72,7 +72,6 @@ import net.sf.freecol.common.resources.ResourceManager;
 import net.sf.freecol.common.resources.Video;
 import static net.sf.freecol.common.util.CollectionUtils.*;
 import static net.sf.freecol.common.util.StringUtils.*;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Holds various images that can be called upon by others in order to display
@@ -964,7 +963,6 @@ public final class ImageLibrary {
         return this.imageCache.getSizedImage(key, this.tileSize, false);
     }
 
-    @NotNull
     public static String getBorderImageKey(TileType type, Direction direction, int x, int y) {
         final String key = "image.tile."
                 + ((type == null) ? "model.tile.unexplored" : type.getId())
@@ -1177,7 +1175,6 @@ public final class ImageLibrary {
         return this.imageCache.getSizedImage(key, this.tileSize, false);
     }
 
-    @NotNull
     public static String getRiverMouthImageKey(Direction direction, int magnitude) {
         return "image.tile.model.tile.delta." + direction
                 + ((magnitude == 1) ? ".small" : ".large");

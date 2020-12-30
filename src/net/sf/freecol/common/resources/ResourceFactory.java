@@ -198,15 +198,7 @@ public class ResourceFactory {
                 output.add(ar);
                 audioResources.put(uri, new WeakReference<>(ar));
             } else if (uri.getPath().endsWith(".ogg")) {
-                if (uri.getPath().endsWith(".video.ogg")) {
-                    VideoResource vr = new VideoResource(uri);
-                    output.add(vr);
-                    videoResources.put(uri, new WeakReference<>(vr));
-                } else {
-                    AudioResource ar = new AudioResource(uri);
-                    output.add(ar);
-                    audioResources.put(uri, new WeakReference<>(ar));
-                }
+                return;
             } else {
                 ImageResource ir = new ImageResource(uri);
                 output.add(ir);

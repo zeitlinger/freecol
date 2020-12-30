@@ -59,7 +59,6 @@ import net.sf.freecol.common.networking.ServerAPI;
 import net.sf.freecol.common.resources.ResourceManager;
 import net.sf.freecol.server.FreeColServer;
 import net.sf.freecol.server.FreeColServer.ServerState;
-import org.freecol.GdxGUI;
 
 /**
  * The main control class for the FreeCol client.  This class both
@@ -180,8 +179,13 @@ public final class FreeColClient {
 
         // Now we have at least the base resources, get the GUI up (it
         // needs font resources) and show the splash screen
-        gui = (FreeCol.getHeadless()) ? new GUI(this, scale)
-                                      : new GdxGUI(this, scale);
+        try {
+            gui = (FreeCol.getHeadless()) ? new GUI(this, scale) :
+                    (GUI)Class.forName("org.freecol.KorgeGUI").getConstructor(FreeColClient.class, Float.TYPE)
+                    .newInstance(this, scale);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         gui.displaySplashScreen(splashStream);
 
         // Once the basic resources are in place construct other things.
